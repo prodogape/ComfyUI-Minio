@@ -6,6 +6,11 @@ class MinioHandler:
         self.minio_access_key = os.getenv("MINIO_ACCESS_KEY")
         self.minio_secret_key = os.getenv("MINIO_SECRET_KEY")
         self.minio_endpoint = os.getenv("MINIO_ENDPOINT")
+        self.minio_secure = False
+        minio_secure = os.getenv("MINIO_SECURE",'False')
+        if minio_secure == "true":
+            self.minio_secure = True
+
         self.client = self.initialize_minio_client()
 
     def initialize_minio_client(self):
@@ -13,7 +18,7 @@ class MinioHandler:
             self.minio_endpoint,
             access_key=self.minio_access_key,
             secret_key=self.minio_secret_key,
-            secure=False,
+            secure=self.minio_secure,
         )  # Set secure to True if using HTTPS
         return client
 

@@ -42,7 +42,8 @@ def Load_minio_config():
             "MINIO_ACCESS_KEY": os.environ.get("MINIO_ACCESS_KEY"),
             "MINIO_SECRET_KEY": os.environ.get("MINIO_SECRET_KEY"),
             "COMFYINPUT_BUCKET": os.environ.get("COMFYINPUT_BUCKET"),
-            "COMFYOUTPUT_BUCKET": os.environ.get("COMFYOUTPUT_BUCKET")
+            "COMFYOUTPUT_BUCKET": os.environ.get("COMFYOUTPUT_BUCKET"),
+            "MINIO_SECURE": os.environ.get("MINIO_SECURE"),
         }
 
         if all(value is not None for value in config_data.values()):
@@ -60,6 +61,7 @@ def save_config_to_env(config_data):
         os.environ["MINIO_SECRET_KEY"] = config_data["MINIO_SECRET_KEY"]
         os.environ["COMFYINPUT_BUCKET"] = config_data["COMFYINPUT_BUCKET"]
         os.environ["COMFYOUTPUT_BUCKET"] = config_data["COMFYOUTPUT_BUCKET"]
+        os.environ["MINIO_SECURE"] = config_data["MINIO_SECURE"]
 
 def save_config_to_local(config_data): 
     folder = os.path.join(folder_paths.models_dir, minio_dir_name)
@@ -111,6 +113,7 @@ class SetMinioConfig:
                         "default": "comfyoutput",
                     },
                 ),
+                "minio_secure": ("BOOLEAN", {"default": False}),
             },
         }
 
@@ -127,6 +130,7 @@ class SetMinioConfig:
         minio_secret_key,
         ComfyUI_input_bucket,
         ComfyUI_output_bucket,
+        minio_secure
     ):
 
         os.environ["MINIO_HOST"] = minio_host
@@ -136,6 +140,7 @@ class SetMinioConfig:
         os.environ["MINIO_SECRET_KEY"] = minio_secret_key
         os.environ["COMFYINPUT_BUCKET"] = ComfyUI_input_bucket
         os.environ["COMFYOUTPUT_BUCKET"] = ComfyUI_output_bucket
+        os.environ["MINIO_SECURE"] = str(minio_secure)
 
         minio_handler = MinioHandler()
         text = ''
@@ -151,7 +156,8 @@ class SetMinioConfig:
             "MINIO_ACCESS_KEY": minio_access_key,
             "MINIO_SECRET_KEY": minio_secret_key,
             "COMFYINPUT_BUCKET": ComfyUI_input_bucket,
-            "COMFYOUTPUT_BUCKET": ComfyUI_output_bucket
+            "COMFYOUTPUT_BUCKET": ComfyUI_output_bucket,
+            "MINIO_SECURE": minio_secure,
         }
         save_config_to_local(config_data)
 
