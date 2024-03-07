@@ -29,9 +29,11 @@ any_type = AnyType("*")
 
 
 def Load_minio_config():
-    if os.path.exists(minio_config):
-        with open(minio_config, "r") as config_file:
-            config_data = json.load(config_file)
+    folder = os.path.join(folder_paths.models_dir, minio_dir_name)
+    minio_config_path = os.path.join(folder, minio_config)
+    if os.path.exists(minio_config_path):
+        with open(minio_config_path, 'r') as file:
+            config_data = json.load(file)
         save_config_to_env(config_data)
         return config_data
     else:
@@ -61,16 +63,16 @@ def save_config_to_env(config_data):
         os.environ["MINIO_SECRET_KEY"] = config_data["MINIO_SECRET_KEY"]
         os.environ["COMFYINPUT_BUCKET"] = config_data["COMFYINPUT_BUCKET"]
         os.environ["COMFYOUTPUT_BUCKET"] = config_data["COMFYOUTPUT_BUCKET"]
-        os.environ["MINIO_SECURE"] = config_data["MINIO_SECURE"]
+        os.environ["MINIO_SECURE"] = str(config_data["MINIO_SECURE"])
 
 def save_config_to_local(config_data): 
-    folder = os.path.join(folder_paths.models_dir, minio_dir_name)
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-    minio_config_path = os.path.join(folder, minio_config)
-    
-    with open(minio_config_path, "w") as config_file:
-        json.dump(config_data, config_file, indent=4)
+    if config_data:
+        folder = os.path.join(folder_paths.models_dir, minio_dir_name)
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        minio_config_path = os.path.join(folder, minio_config)
+        with open(minio_config_path, "w") as config_file:
+            json.dump(config_data, config_file, indent=4)
 
 class SetMinioConfig:
     @classmethod
@@ -142,9 +144,9 @@ class SetMinioConfig:
         os.environ["COMFYOUTPUT_BUCKET"] = ComfyUI_output_bucket
         os.environ["MINIO_SECURE"] = str(minio_secure)
 
-        minio_handler = MinioHandler()
+        minio_client = MinioHandler()
         text = ''
-        if minio_handler.is_minio_connected(ComfyUI_input_bucket):
+        if minio_client.is_minio_connected(ComfyUI_input_bucket):
             text = "Minio initialize successful!"
         else:
             text = "Minio unable to connect, please check if your Minio is configured correctly!"
@@ -168,12 +170,12 @@ class LoadImageFromMinio:
     @classmethod
     def INPUT_TYPES(cls):
         files = []
-        config_data=Load_minio_config()
+        config_data = Load_minio_config()
         if config_data is not None:
             COMFYINPUT_BUCKET = os.environ.get("COMFYINPUT_BUCKET")
-            minio_handler = MinioHandler()
-            if minio_handler.is_minio_connected(COMFYINPUT_BUCKET):
-                files = minio_handler.get_all_files_in_bucket(COMFYINPUT_BUCKET)
+            minio_client = MinioHandler()
+            if minio_client.is_minio_connected(COMFYINPUT_BUCKET):
+                files = minio_client.get_all_files_in_bucket(COMFYINPUT_BUCKET)
         return {
             "required": {
                 "image": (sorted(files),),
@@ -187,11 +189,12 @@ class LoadImageFromMinio:
     def main(self, image):
         config_data = Load_minio_config()
         if config_data is not None:
-            minio_handler = MinioHandler()
-            COMFYINPUT_BUCKET = os.environ.get("COMFYINPUT_BUCKET")
-            if minio_handler.is_minio_connected(COMFYINPUT_BUCKET):
+            minio_client = MinioHandler()
+            if minio_client.is_minio_connected(config_data["COMFYINPUT_BUCKET"]):
                 start_time = time.time()
-                image_file = minio_handler.get_file_by_name(COMFYINPUT_BUCKET, image)
+                image_file = minio_client.get_file_by_name(
+                    config_data["COMFYINPUT_BUCKET"], image
+                )
                 print(f"Minio get file time: {time.time()-start_time}s")
 
                 i = Image.open(image_file)
@@ -223,30 +226,37 @@ class SaveImageToMinio:
                     },
                 ),
             },
-            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO"},
         }
 
     CATEGORY = "ComfyUI-Minio"
     FUNCTION = "main"
-    RETURN_TYPES = ()
+    RETURN_TYPES = ('JSON',)
 
     def main(self, images, filename_prefix):
         config_data = Load_minio_config()
+        print("config_data", config_data)
         if config_data is not None:
-            COMFYINPUT_BUCKET = os.environ.get("COMFYINPUT_BUCKET")
-            COMFYINPUT_BUCKET = os.environ.get("COMFYINPUT_BUCKET")
-            minio_handler = MinioHandler()
-            if minio_handler.is_minio_connected(COMFYOUTPUT_BUCKET):
+            minio_client = MinioHandler()
+            if minio_client.is_minio_connected(config_data['COMFYOUTPUT_BUCKET']):
                 object_name = f"{datetime.datetime.now().strftime('%Y%m%d')}-{uuid.uuid1()}-{filename_prefix}.png"
                 results = []
                 for image in images:
-                    status = minio_handler.upload_image_to_minio(
-                        self, COMFYOUTPUT_BUCKET, image, object_name
+                    i = 255. * image.cpu().numpy()
+                    img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
+                    metadata = None
+                    buffer = BytesIO()
+                    img.save(buffer, "png", pnginfo=metadata, compress_level=4)
+                    minio_client.put_image_by_stream(
+                        bucket_name=config_data["COMFYOUTPUT_BUCKET"],
+                        file_name=object_name,
+                        file_stream=buffer,
                     )
-                    if(status):
-                        results.append({"filename": object_name, "type": "output"})
+                    url = f"{config_data['MINIO_ENDPOINT']}/{config_data['COMFYOUTPUT_BUCKET']}/{object_name}"
+                    results.append({"filename": object_name, "type": "output", "url": url})
 
-                return {"ui": {"images": results}}
+                print('results',results)
+                results_json = json.dumps(results)
+                return results_json
             else:
                 raise Exception("Failed to connect to Minio")
         else:

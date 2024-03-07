@@ -1,16 +1,12 @@
 import os
 from minio import Minio
+import mimetypes
 
 class MinioHandler:
     def __init__(self):
         self.minio_access_key = os.getenv("MINIO_ACCESS_KEY")
         self.minio_secret_key = os.getenv("MINIO_SECRET_KEY")
         self.minio_endpoint = os.getenv("MINIO_ENDPOINT")
-        self.minio_secure = False
-        minio_secure = os.getenv("MINIO_SECURE",'False')
-        if minio_secure == "true":
-            self.minio_secure = True
-
         self.client = self.initialize_minio_client()
 
     def initialize_minio_client(self):
@@ -18,7 +14,7 @@ class MinioHandler:
             self.minio_endpoint,
             access_key=self.minio_access_key,
             secret_key=self.minio_secret_key,
-            secure=self.minio_secure,
+            secure=os.getenv("MINIO_SECURE", "false").lower() == "true",
         )  # Set secure to True if using HTTPS
         return client
 
@@ -32,35 +28,26 @@ class MinioHandler:
         except Exception as e:
             return False
 
-    def upload_image_to_bucket(self, bucket_name, file_path, object_name, mime_type):
-        try:
-            self.client.fput_object(
-                bucket_name, object_name, file_path, content_type=mime_type
-            )
-            print(f"File {object_name} uploaded successfully to bucket {bucket_name}")
-        except Exception as err:
-            print(err)
-
-    def upload_image_to_minio(self, bucket_name, image, object_name):
-        try:
-            i = 255.0 * image.cpu().numpy()
-            img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
-            metadata = None
-            buffer = BytesIO()
-            img.save(
-                buffer, "png", pnginfo=metadata, compress_level=self.compress_level
-            )
-            buffer.seek(0)
-
-            # Upload the image to Minio
-            self.client.put_object(
-                bucket_name, object_name, buffer, len(buffer.getvalue()), "image/png"
-            )
-
-            return True
-        except Exception as e:
-            print(f"Error uploading image to Minio: {e}")
-            return False
+    def put_file(self, bucket_name, file_name, file_stream, length: int, content_type="application/octet-stream"):
+        file_stream.seek(0)
+        return self.client.put_object(
+            bucket_name=bucket_name, object_name=file_name, data=file_stream, length=length, content_type=content_type
+        )
+        
+    def put_image_by_stream(self, bucket_name, file_name, file_stream):
+        file_extension = os.path.splitext(file_name)[-1]
+        file_stream_size = file_stream.getbuffer().nbytes
+        file_extension = file_extension.split(".")[-1]
+        content_type = mimetypes.types_map.get(
+            "." + file_extension.lower(), "application/octet-stream"
+        )
+        return self.put_file(
+            bucket_name=bucket_name,
+            file_name=file_name,
+            file_stream=file_stream,
+            length=file_stream_size,
+            content_type=content_type,
+        )
 
     def get_all_files_in_bucket(self, bucket_name):
         files = []
