@@ -1,0 +1,2 @@
+# Comfyui-Minio
+这个节点主要是可以从minio里面读取图片和保存图片
