@@ -29,7 +29,7 @@ any_type = AnyType("*")
 
 
 def Load_minio_config():
-    folder = os.path.join(folder_paths.models_dir, minio_dir_name)
+    folder = os.path.join(folder_paths.base_path, minio_dir_name)
     minio_config_path = os.path.join(folder, minio_config)
     if os.path.exists(minio_config_path):
         with open(minio_config_path, 'r') as file:
@@ -67,7 +67,7 @@ def save_config_to_env(config_data):
 
 def save_config_to_local(config_data): 
     if config_data:
-        folder = os.path.join(folder_paths.models_dir, minio_dir_name)
+        folder = os.path.join(folder_paths.base_path, minio_dir_name)
         if not os.path.exists(folder):
             os.makedirs(folder)
         minio_config_path = os.path.join(folder, minio_config)
@@ -225,22 +225,25 @@ class SaveImageToMinio:
                         "default": "ComfyUI",
                     },
                 ),
+                "expires": (
+                    "INT",
+                    {"default": 1, "min": 1, "max": 168, "step": 1},
+                ),
             },
         }
 
     CATEGORY = "ComfyUI-Minio"
     FUNCTION = "main"
-    RETURN_TYPES = ('JSON',)
+    RETURN_TYPES = ("JSON",)
 
-    def main(self, images, filename_prefix):
+    def main(self, images, filename_prefix,expires):
         config_data = Load_minio_config()
-        print("config_data", config_data)
         if config_data is not None:
             minio_client = MinioHandler()
             if minio_client.is_minio_connected(config_data['COMFYOUTPUT_BUCKET']):
-                object_name = f"{datetime.datetime.now().strftime('%Y%m%d')}-{uuid.uuid1()}-{filename_prefix}.png"
-                results = []
+                results =[]
                 for image in images:
+                    file_name = f"{filename_prefix}-{datetime.datetime.now().strftime('%Y%m%d')}-{uuid.uuid1()}.png"
                     i = 255. * image.cpu().numpy()
                     img = Image.fromarray(np.clip(i, 0, 255).astype(np.uint8))
                     metadata = None
@@ -248,15 +251,23 @@ class SaveImageToMinio:
                     img.save(buffer, "png", pnginfo=metadata, compress_level=4)
                     minio_client.put_image_by_stream(
                         bucket_name=config_data["COMFYOUTPUT_BUCKET"],
-                        file_name=object_name,
+                        file_name=file_name,
                         file_stream=buffer,
                     )
-                    url = f"{config_data['MINIO_ENDPOINT']}/{config_data['COMFYOUTPUT_BUCKET']}/{object_name}"
-                    results.append({"filename": object_name, "type": "output", "url": url})
-
-                print('results',results)
-                results_json = json.dumps(results)
-                return results_json
+                    url = minio_client.get_file_url_by_name(
+                        bucket_name=config_data["COMFYOUTPUT_BUCKET"],
+                        file_name=file_name,
+                        expires_hours=expires,
+                    )
+                    result = {
+                        "filename": file_name,
+                        "type": "output",
+                        "bucket_name":config_data["COMFYOUTPUT_BUCKET"],
+                        "url": url,
+                    }
+                    results.append(result)
+                #print("results", results)
+                return results
             else:
                 raise Exception("Failed to connect to Minio")
         else:

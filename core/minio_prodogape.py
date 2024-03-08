@@ -1,6 +1,7 @@
 import os
 from minio import Minio
 import mimetypes
+from datetime import timedelta
 
 class MinioHandler:
     def __init__(self):
@@ -33,7 +34,7 @@ class MinioHandler:
         return self.client.put_object(
             bucket_name=bucket_name, object_name=file_name, data=file_stream, length=length, content_type=content_type
         )
-        
+
     def put_image_by_stream(self, bucket_name, file_name, file_stream):
         file_extension = os.path.splitext(file_name)[-1]
         file_stream_size = file_stream.getbuffer().nbytes
@@ -58,6 +59,10 @@ class MinioHandler:
 
     def get_file_by_name(self, bucket_name, file_name):
         return self.client.get_object(bucket_name=bucket_name, object_name=file_name)
+
+    def get_file_url_by_name(self, bucket_name, file_name, expires_hours=1):
+        expires = timedelta(hours=expires_hours)
+        return self.client.presigned_get_object(bucket_name=bucket_name, object_name=file_name, expires=expires)
 
 # Example usage
 if __name__ == "__main__":
