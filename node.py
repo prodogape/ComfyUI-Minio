@@ -82,7 +82,7 @@ class SetMinioConfig:
                 "minio_host": (
                     "STRING",
                     {
-                        "default": "http://localhost",
+                        "default": "localhost",
                     },
                 ),
                 "minio_port": (
@@ -121,8 +121,8 @@ class SetMinioConfig:
 
     CATEGORY = "ComfyUI-Minio"
     FUNCTION = "main"
-    RETURN_TYPES = (any_type,'JSON')
-    RETURN_NAMES = ("init_info",'minio_config',)
+    RETURN_TYPES = ('JSON',)
+    RETURN_NAMES = ('response',)
 
     def main(
         self,
@@ -146,7 +146,9 @@ class SetMinioConfig:
 
         minio_client = MinioHandler()
         text = ''
+        status = 1
         if minio_client.is_minio_connected(ComfyUI_input_bucket):
+            status = 0
             text = "Minio initialize successful!"
         else:
             text = "Minio unable to connect, please check if your Minio is configured correctly!"
@@ -162,8 +164,11 @@ class SetMinioConfig:
             "MINIO_SECURE": minio_secure,
         }
         save_config_to_local(config_data)
-
-        return (text,config_data)
+        
+        response=[]
+        response.append({"status": status, "message": text, "data": config_data})
+        
+        return response
 
 class LoadImageFromMinio:
 

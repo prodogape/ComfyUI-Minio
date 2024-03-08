@@ -63,16 +63,3 @@ class MinioHandler:
     def get_file_url_by_name(self, bucket_name, file_name, expires_hours=1):
         expires = timedelta(hours=expires_hours)
         return self.client.presigned_get_object(bucket_name=bucket_name, object_name=file_name, expires=expires)
-
-# Example usage
-if __name__ == "__main__":
-    minio_handler = MinioHandler()
-    bucket_name = "your_bucket_name"
-    if minio_handler.is_minio_connected(bucket_name):
-        file_path = "path/to/your/image.png"
-        object_name = "image.png"
-        mime_type = "image/png"
-
-        minio_handler.upload_image_to_bucket(bucket_name, file_path, object_name, mime_type)
-    else:
-        print("Failed to connect to Minio")
