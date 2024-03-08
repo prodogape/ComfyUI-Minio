@@ -225,7 +225,7 @@ class SaveImageToMinio:
                         "default": "ComfyUI",
                     },
                 ),
-                "expires": (
+                "expires_hours": (
                     "INT",
                     {"default": 1, "min": 1, "max": 168, "step": 1},
                 ),
@@ -236,7 +236,7 @@ class SaveImageToMinio:
     FUNCTION = "main"
     RETURN_TYPES = ("JSON",)
 
-    def main(self, images, filename_prefix,expires):
+    def main(self, images, filename_prefix, expires_hours):
         config_data = Load_minio_config()
         if config_data is not None:
             minio_client = MinioHandler()
@@ -257,7 +257,7 @@ class SaveImageToMinio:
                     url = minio_client.get_file_url_by_name(
                         bucket_name=config_data["COMFYOUTPUT_BUCKET"],
                         file_name=file_name,
-                        expires_hours=expires,
+                        expires_hours=expires_hours,
                     )
                     result = {
                         "filename": file_name,
@@ -266,7 +266,7 @@ class SaveImageToMinio:
                         "url": url,
                     }
                     results.append(result)
-                #print("results", results)
+                # print("results", results)
                 return results
             else:
                 raise Exception("Failed to connect to Minio")
