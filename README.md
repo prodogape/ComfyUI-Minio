@@ -8,11 +8,11 @@ This plugin is mainly based on Minio, implementing the ability to read images fr
 
 # Nodes
 
-|Name                   |Description                                            |
-|-----------------------|-------------------------------------------------------|
-|Set Minio Config       |Initialization of Minio.                               |
-|Load Image From Minio  |Read images from Minio.                                |
-|Save Image To Minio    |Save images to Minio, supports saving multiple images. |
+|Name                         |Description                                            |
+|-----------------------------|-------------------------------------------------------|
+|Set Minio Config             |Initialization of Minio.                               |
+|Load Image From Minio        |Read images from Minio.                                |
+|Save Image To Minio          |Save images to Minio, supports saving multiple images. |
 
 # Install
 
@@ -25,8 +25,8 @@ pip install -r requirements.txt
 # Note
 Before using, please initialize according to the steps below
 
-## 1. Add node
-Add node:Set Minio Config
+## 1. Add node:Set Minio Config
+
 ![steps 1](./docs/steps-image-1.png)
 
 
@@ -38,7 +38,7 @@ Enter your Minio configuration information and run the plugin
 Note: If you want to display JSON information, please install the plugin [Comfyui-Toolbox](https://github.com/zcfrank1st/Comfyui-Toolbox)
 
 ## 3. Check
-If the Minio configuration is correct and can be connected successfully, a minio/minio_config.json file will be created in the root directory
+If the Minio configuration is correct and can be connected successfully, a file will be created in the root directory
 
 ```
 ComfyUI
