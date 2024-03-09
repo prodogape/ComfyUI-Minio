@@ -13,23 +13,11 @@ from PIL import Image
 from PIL.PngImagePlugin import PngInfo
 from base64 import b64encode
 from io import BytesIO
-import logging
-
-logger = logging.getLogger("ComfyUI-Minio")
 
 minio_config = "minio_config.json"
-minio_dir_name = "minio"
-
-class AnyType(str):
-    """A special type that can be connected to any other types. Credit to pythongosssss"""
-    def __ne__(self, __value: object) -> bool:
-        return False
-
-any_type = AnyType("*")
-
 
 def Load_minio_config():
-    folder = os.path.join(folder_paths.base_path, minio_dir_name)
+    folder = folder_paths.output_directory
     minio_config_path = os.path.join(folder, minio_config)
     if os.path.exists(minio_config_path):
         with open(minio_config_path, 'r') as file:
@@ -67,9 +55,7 @@ def save_config_to_env(config_data):
 
 def save_config_to_local(config_data): 
     if config_data:
-        folder = os.path.join(folder_paths.base_path, minio_dir_name)
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        folder = folder_paths.output_directory
         minio_config_path = os.path.join(folder, minio_config)
         with open(minio_config_path, "w") as config_file:
             json.dump(config_data, config_file, indent=4)
@@ -215,7 +201,7 @@ class LoadImageFromMinio:
             else:
                 raise Exception("Failed to connect to Minio")
         else:
-            raise Exception("please check if your Minio is configured correctly")
+            raise Exception("Please check if your Minio is configured correctly")
 
 class SaveImageToMinio:
 
@@ -224,6 +210,10 @@ class SaveImageToMinio:
         return {
             "required": {
                 "images": ("IMAGE",),
+                "type": (
+                    ["input", "output"],
+                    {"default": "output"},
+                ),
                 "filename_prefix": (
                     "STRING",
                     {
@@ -241,11 +231,16 @@ class SaveImageToMinio:
     FUNCTION = "main"
     RETURN_TYPES = ("JSON",)
 
-    def main(self, images, filename_prefix, expires_hours):
+    def main(self, images,type, filename_prefix, expires_hours):
         config_data = Load_minio_config()
         if config_data is not None:
             minio_client = MinioHandler()
-            if minio_client.is_minio_connected(config_data['COMFYOUTPUT_BUCKET']):
+            if(type =='input'):
+                bucket_name = config_data["COMFYINPUT_BUCKET"]
+            if(type =='output'):
+                bucket_name = config_data["COMFYOUTPUT_BUCKET"]
+
+            if minio_client.is_minio_connected(bucket_name):
                 results =[]
                 for image in images:
                     file_name = f"{filename_prefix}-{datetime.datetime.now().strftime('%Y%m%d')}-{uuid.uuid1()}.png"
@@ -255,19 +250,19 @@ class SaveImageToMinio:
                     buffer = BytesIO()
                     img.save(buffer, "png", pnginfo=metadata, compress_level=4)
                     minio_client.put_image_by_stream(
-                        bucket_name=config_data["COMFYOUTPUT_BUCKET"],
+                        bucket_name=bucket_name,
                         file_name=file_name,
                         file_stream=buffer,
                     )
                     url = minio_client.get_file_url_by_name(
-                        bucket_name=config_data["COMFYOUTPUT_BUCKET"],
+                        bucket_name=bucket_name,
                         file_name=file_name,
                         expires_hours=expires_hours,
                     )
                     result = {
                         "filename": file_name,
                         "type": "output",
-                        "bucket_name":config_data["COMFYOUTPUT_BUCKET"],
+                        "bucket_name": bucket_name,
                         "url": url,
                     }
                     results.append(result)
@@ -276,4 +271,4 @@ class SaveImageToMinio:
             else:
                 raise Exception("Failed to connect to Minio")
         else:
-            raise Exception("please check if your Minio is configured correctly")
+            raise Exception("Please check if your Minio is configured correctly")

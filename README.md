@@ -38,11 +38,11 @@ Enter your Minio configuration information and run the plugin
 Note: If you want to display JSON information, please install the plugin [Comfyui-Toolbox](https://github.com/zcfrank1st/Comfyui-Toolbox)
 
 ## 3. Check
-If the Minio configuration is correct and can be connected successfully, a file will be created in the root directory
+If the Minio configuration is correct and can be connected successfully, a file will be created in the output directory
 
 ```
 ComfyUI
-    minio
+    output
         minio_config.json
 ```
 

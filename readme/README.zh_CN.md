@@ -33,11 +33,11 @@ pip install -r requirements.txt
 
 注意：如果想要显示json信息，请安装插件[Comfyui-Toolbox](https://github.com/zcfrank1st/Comfyui-Toolbox)
 
-## 3. 如果minio配置正确，且可以正常连接，则会在根目录创建minio/minio_config.json
+## 3. 如果minio配置正确，且可以正常连接，则会在output/minio_config.json
 
 ```
 ComfyUI
-    minio
+    output
         minio_config.json
 ```
 
